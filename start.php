@@ -35,10 +35,10 @@ function ldap_auth_authenticate($credentials = null) {
 	}
 
 	// Get configuration settings
-	$config = elgg_get_plugin_from_id('ldap_auth');
+	$settings = elgg_get_plugin_from_id('ldap_auth');
 
 	// Nothing to do if not configured
-	if (!$config) {
+	if (!$settings) {
 		error_log("LDAP error: unable to find configuration");
 		return false;
 	}
@@ -54,42 +54,72 @@ function ldap_auth_authenticate($credentials = null) {
 		return false;
 	}
 
-	// Perform the authentication
-	return ldap_auth_check($config, $username, $password);
+	// No point continuing
+	if (empty($settings->hostname)) {
+		error_log("LDAP error: no host configured.");
+		return false;
+	}
+	
+	$config = array(
+		'port'        => $settings->port ? $settings->port : 389,
+		'version'     => $settings->version ? $settings->version : 3,
+		'filter_attr' => $settings->filter_attr ? $settings->filter_attr : 'uid',
+		'search_attr' => $settings->search_attr,
+		'bind_pwd'    => $settings->ldap_bind_pwd,
+		'user_create' => ($settings->user_create == 'on') ? true : false,
+	);
+	
+	// Support for multiple hosts
+	if (strstr($settings->hostname, ';')) {
+		$hosts = explode(';', $settings->hostname);
+		$basedns = explode(';', $settings->basedn);
+		$bind_dns = explode(';', $settings->ldap_bind_dn);
+	} else {
+		$hosts = array($settings->hostname);
+		$basedns = array($settings->basedn);
+		$bind_dns = array($settings->ldap_bind_dn);
+	}
+	
+	foreach ($hosts as $key => $host) {
+		$config['host'] = $hosts[$key];
+		$config['bind_dn'] = $bind_dns[$key];
+		$config['basedn'] = $basedns[$key];
+		
+		// Attempt authentication
+		$result = ldap_auth_check($config, $username, $password);
+		
+		// Keep going until success or all hosts have been checked
+		if ($result) {
+			return true;
+		} else {
+			continue;
+		}
+	}
+	
+	// LDAP Authentication failed
+	return false;
 }
 
 /**
  * Perform an LDAP authentication check
  *
- * @param ElggPlugin $config
+ * @param array $config
  * @param string $username
  * @param string $password
  * @return boolean
  */
 function ldap_auth_check($config, $username, $password) {
-	$host = $config->hostname;
+	$host        = $config['host'];
+	$port        = $config['port'];
+	$version     = $config['version'];
+	$basedn      = $config['basedn'];
+	$filter_attr = $config['filter_attr'];
+	$search_attr = $config['search_attr'];
+	$bind_dn     = $config['bind_dn'];
+	$bind_pwd    = $config['bind_pwd'];
+	$user_create = $config['user_create'];
 
-	// No point continuing
-	if (empty($host)) {
-		error_log("LDAP error: no host configured.");
-		return false;
-	}
-
-	$port        = $config->port;
-	$version     = $config->version;
-	$basedn      = $config->basedn;
-	$filter_attr = $config->filter_attr;
-	$search_attr = $config->search_attr;
-	$bind_dn     = $config->ldap_bind_dn;
-	$bind_pwd    = $config->ldap_bind_pwd;
-	$user_create = $config->user_create;
-
-	($user_create == 'on') ? $user_create = true : $user_create = false;
-
-	$port        ? $port        : $port = 389;
-	$version     ? $version     : $version = 3;
-	$filter_attr ? $filter_attr : $filter_attr = 'uid';
-	$basedn      ? $basedn = array_map('trim', explode(':', $basedn)) : $basedn = array();
+	$basedn ? $basedn = array_map('trim', explode(':', $basedn)) : $basedn = array();
 
 	if (!empty($search_attr)) {
 		// $search_attr as in "email:email_address, name:name_name";
@@ -194,17 +224,6 @@ function ldap_auth_check($config, $username, $password) {
  */
 function ldap_auth_connect($host, $port, $version, $bind_dn, $bind_pwd) {
 	$ds = ldap_connect($host, $port);
-/*
-	echo "<pre>";
-	var_dump($host);
-	var_dump($port);
-	var_dump($version);
-	var_dump($bind_dn);
-	var_dump($bind_pwd);
-	var_dump($ds);
-	echo "</pre>";
-	die();
-	*/
 
 	if ($ds === false) {
 		error_log('LDAP: unable to connect to the LDAP server: ' . ldap_error($ds));
