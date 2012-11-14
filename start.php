@@ -172,10 +172,14 @@ function ldap_auth_check($config, $username, $password) {
 
 					$guid = register_user($username, $password, $name, $email);
 					if ($guid) {
-						$new_user = get_entity($user_guid);
+						$new_user = get_entity($guid);
 
 						// allow plugins to respond to registration
-						$params = array('user' => $new_user);
+						$params = array(
+							'user' => $new_user,
+							'ldap_user_info' => $ldap_user_info,
+						);
+
 						if (!elgg_trigger_plugin_hook('register', 'user', $params, TRUE)) {
 							// For some reason one of the plugins returned false.
 							// This most likely means that something went terribly
