@@ -34,6 +34,8 @@ function ldap_auth_authenticate($credentials = null) {
 		return false;
 	}
 
+	elgg_register_plugin_hook_handler('permissions_check', 'user', 'ldap_auth_permissions_override');
+
 	// Get configuration settings
 	$settings = elgg_get_plugin_from_id('ldap_auth');
 
@@ -184,9 +186,13 @@ function ldap_auth_check($config, $username, $password) {
 							// For some reason one of the plugins returned false.
 							// This most likely means that something went terribly
 							// wrong and we will have to remove the user.
+
+							elgg_set_context('ldap_auth_delete');
 							$new_user->delete();
+							elgg_pop_context('ldap_auth_delete');
+
 							register_error(elgg_echo('registerbad'));
-							
+
 							return false;
 						}
 
@@ -301,4 +307,14 @@ function ldap_auth_do_auth($ds, $basedn, $username, $password, $filter_attr, $se
 	}
 
 	return false;
+}
+
+/**
+ * Allow user account to be deleted if registration fails.
+ */
+function ldap_auth_permissions_override ($event, $type, $return, $params) {
+	if (elgg_in_context('ldap_auth_delete')) {
+		return true;
+	}
+	return $return;
 }
