@@ -312,7 +312,7 @@ function ldap_auth_do_auth($ds, $basedn, $username, $password, $filter_attr, $se
 /**
  * Allow user account to be deleted if registration fails.
  */
-function ldap_auth_permissions_override ($event, $type, $return, $params) {
+function ldap_auth_permissions_override ($event, $type, $return, $params) {
 	if (elgg_in_context('ldap_auth_delete')) {
 		return true;
 	}
