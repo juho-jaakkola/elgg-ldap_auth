@@ -176,6 +176,9 @@ function ldap_auth_check($config, $username, $password) {
 					if ($guid) {
 						$new_user = get_entity($guid);
 
+						// Registration successful, validate the user
+						elgg_set_user_validation_status($guid, true, 'LDAP plugin based validation');
+
 						// allow plugins to respond to registration
 						$params = array(
 							'user' => $new_user,
@@ -195,9 +198,6 @@ function ldap_auth_check($config, $username, $password) {
 
 							return false;
 						}
-
-						// Registration successful, validate the user
-						elgg_set_user_validation_status($guid, true, 'LDAP plugin based validation');
 
 						// Success, credentials valid and account has been created
 						ldap_close($ds);
