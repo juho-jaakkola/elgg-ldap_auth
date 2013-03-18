@@ -186,6 +186,9 @@ function ldap_auth_check($config, $username, $password) {
 						// Registration successful, validate the user
 						elgg_set_user_validation_status($guid, true, 'LDAP plugin based validation');
 
+						// Let plugin hook handlers know which server was used for athentication
+						$ldap_user_info['host'] = $host;
+
 						// allow plugins to respond to registration
 						$params = array(
 							'user' => $new_user,
