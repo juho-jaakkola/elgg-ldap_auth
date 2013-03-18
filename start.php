@@ -172,7 +172,14 @@ function ldap_auth_check($config, $username, $password) {
 
 					($ldap_user_info['mail']) ? $email = $ldap_user_info['mail'] : $email = null;
 
-					$guid = register_user($username, $password, $name, $email);
+					try {
+						$guid = register_user($username, $password, $name, $email);
+					} catch (Exception $e) {
+						error_log("LDAP: failed to make account for $username. {$e->getMessage()}");
+						ldap_close($ds);
+						return false;
+					}
+
 					if ($guid) {
 						$new_user = get_entity($guid);
 
